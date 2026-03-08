@@ -19,20 +19,28 @@ Discard: exploration history, rejected alternatives, tool call details.
 ---
 
 ## Session Start Ritual
-Run before writing any code — no exceptions:
-```
-1. list_memories
-2. read_memory "task-log.md"
-3. read_memory "session-state.md"   ← if resuming
-4. activate_project
-5. check_onboarding_performed
-6. initial_instructions
-```
+Hook auto-injects this per session. Two modes:
+- **Coding session** (`.serena` present): all 6 steps — list_memories, read task-log, read session-state, activate_project, check_onboarding, initial_instructions
+- **Non-coding session**: steps 1–2 only — list_memories, read task-log (if relevant)
 
 ---
 
+## Subagent Discipline
+Use subagents for ANY codebase exploration that reads more than 3 files:
+```
+"Use a subagent to explore X — report back summary only, not raw content"
+```
+Never explore large codebases in main context. Exploration fills context and kills implementation quality.
+
+## Tool Priorities
+- Symbol navigation → serena (`find_symbol`, `get_symbols_overview`, `find_referencing_symbols`)
+- Semantic/AI-powered search → mgrep
+- API/library verification → context7 (always before writing code that uses external APIs)
+
+## TDD Discipline
+RED → GREEN → REFACTOR. No implementation before failing test. No declaring done without running actual tests.
+
 ## Forbidden
-- Reading entire files when serena can find the symbol
 - Guessing library API signatures without context7
 - Writing code before TDD RED step is confirmed
 - Declaring done without running actual tests

@@ -1,15 +1,14 @@
 # Anti-Hallucination Rules
 
 ## Before Editing Any Symbol
-- `think_about_collected_information` — sufficient context?
-- `think_about_task_adherence` — within current task scope only?
+- Is collected context sufficient?
+- Is this within current task scope only?
 
 If either fails: gather more context via serena or mgrep. Do not proceed on assumptions.
 
 ## Before Declaring Done
-- `think_about_whether_you_are_done`
-- Run the actual verification command
-- Report real terminal output — not what you expect it to say
+- Run the actual verification command.
+- Report real terminal output — not what you expect it to say.
 
 ## When Uncertain About Code Behavior
 Use tools in order:
