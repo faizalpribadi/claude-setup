@@ -1,6 +1,12 @@
+<div align="center">
+
 # Claude Code Setup
 
+<img src="assets/my-claude-code.jpg" alt="Claude Code Config Pack" width="600" />
+
 Opinionated configuration pack for Claude Code — enforcing engineering discipline, token efficiency, and workflow consistency.
+
+</div>
 
 ## Quick Start
 
