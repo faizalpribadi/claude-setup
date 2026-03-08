@@ -1,8 +1,6 @@
-# Claude Code Guardrails Starter (Internal)
+# Claude Code Setup
 
-Opinionated baseline for running Claude Code with stronger engineering discipline: session rituals, tool guardrails, memory protocol, and workflow hooks.
-
-This repository is designed for internal/team usage as a reusable configuration pack.
+Opinionated configuration pack for Claude Code — enforcing engineering discipline, token efficiency, and workflow consistency.
 
 ## Quick Start
 
@@ -11,24 +9,18 @@ git clone <this-repo>
 cd claude-setup
 chmod +x install.sh
 ./install.sh
+source ~/.zshrc
 ```
 
 The installer:
-- Deep-merges `settings.json` into existing config (preserves your model, plugins, statusLine)
-- Backs up existing `CLAUDE.md` and `settings.json` before overwriting
-- Installs hooks with execute permissions
+- Deep-merges `settings.json` (preserves your model, custom plugins)
+- Backs up existing `CLAUDE.md` and `settings.json`
+- Installs hooks, rules, slash commands, and `.claudeignore`
 - Sets up MCP servers (context7, mgrep, serena)
+- Installs plugins (superpowers, gopls-lsp, modern-go-guidelines, reflexion, kaizen, sadd)
+- Appends environment variables to `~/.zshrc`
 
-## Why This Exists
-
-This setup enforces consistent behavior across sessions:
-- Start every session with a memory-aware ritual (two modes: serena vs lightweight).
-- Prevent risky commands and enforce proper tool usage.
-- Enforce TDD/verification mindset via explicit rules.
-- Remind to persist task/session memory (once per session, not per edit).
-- Warn when conversation context gets too long.
-
-## Claude Code Runtime Flow
+## Runtime Flow
 
 ```mermaid
 flowchart TD
@@ -44,36 +36,44 @@ flowchart TD
 
     G --> H{Tool call?}
 
-    H -->|Bash| I[PreToolUse hook]
+    H -->|Bash| I[PreToolUse hooks]
     I --> J[pre-tool-guard.sh]
-    J --> K{Blocked pattern?}
-    K -->|cat/head/tail/sed/awk/grep/rg/find/rm -rf| L[Block + suggest correct tool]
-    K -->|Safe command| M[Allow]
+    J --> K{Blocked?}
+    K -->|cat/grep/find/sed/rm -rf| L[Block + suggest correct tool]
+    K -->|Test command| M[filter-test-output.sh]
+    M --> N[Show only FAIL/ERROR lines]
+    K -->|Safe command| O[Allow]
 
-    H -->|Edit/Write/MultiEdit| N[PostToolUse hook]
-    N --> O{First edit in session?}
-    O -->|Yes| P[Memory reminder]
-    O -->|No| Q[Silent — no noise]
+    H -->|Edit/Write| P[PostToolUse hook]
+    P --> Q{First edit?}
+    Q -->|Yes| R[Memory reminder 1x]
+    Q -->|No| S[Silent]
 
-    G --> R[Session ends]
-    R --> S[Stop hook]
-    S --> T{Turns > 20?}
-    T -->|Yes| U[Warn to save session-state]
-    T -->|No| V[Exit normally]
+    G --> T[Session ends]
+    T --> U[Stop hook]
+    U --> V{Turns > 20?}
+    V -->|Yes| W[Warn to save state]
+    V -->|No| X[Exit]
 ```
 
 ## Project Structure
 
-```text
+```
 .
-├── CLAUDE.md              # Global behavior contract
-├── settings.json          # Complete config: hooks + plugins + statusLine + model
-├── install.sh             # Smart installer with deep-merge
+├── CLAUDE.md              # Global behavior contract (56 lines)
+├── .claudeignore          # Exclude node_modules, builds, media from context
+├── settings.json          # Hooks + plugins + statusLine + model config
+├── env.sh                 # Environment variables (token optimization)
+├── install.sh             # Smart installer with deep-merge + plugin setup
+├── commands/
+│   ├── plan.md            # /plan → Opus + plan mode for architecture
+│   └── ask.md             # /ask  → minimal overhead Q&A
 ├── hooks/
-│   ├── session-start.sh   # Two-mode ritual (serena vs lightweight)
-│   ├── pre-tool-guard.sh  # Blocks: cat/head/tail/sed/awk/grep/rg/find + destructive cmds
-│   ├── post-edit-memory.sh # Memory reminder (throttled: once per session)
-│   └── stop-context-check.sh # Context warning on long sessions
+│   ├── session-start.sh       # Two-mode ritual (serena vs lightweight)
+│   ├── pre-tool-guard.sh      # Block: cat/grep/find/sed/awk + destructive cmds
+│   ├── filter-test-output.sh  # Filter test output to failures only
+│   ├── post-edit-memory.sh    # Memory reminder (throttled: 1x per session)
+│   └── stop-context-check.sh  # Context warning on long sessions
 └── rules/
     ├── anti-hallucination.md  # Verification checkpoints
     ├── architecture.md        # Boundaries-first design
@@ -81,81 +81,127 @@ flowchart TD
     ├── memory-protocol.md     # Task log and session state protocol
     ├── plan-writing.md        # Plan format with exact paths and verify commands
     ├── tdd.md                 # RED → GREEN → REFACTOR discipline
-    └── tool-usage.md          # Tool selection: serena vs mgrep vs built-in Grep
+    └── tool-usage.md          # Tool selection + CEK commands reference
 ```
 
-### Responsibility Map
+## Environment Variables
 
-- `CLAUDE.md`
-  - Global behavior contract (identity, response style, forbidden actions).
-  - Defines two-mode session ritual and subagent discipline.
-  - Trimmed to only include rules NOT already in Claude Code's system prompt.
+```bash
+ENABLE_TOOL_SEARCH=auto:5              # Defer MCP tools at 5% context
+DISABLE_NON_ESSENTIAL_MODEL_CALLS=1    # Suppress background model calls
+CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=50     # Compact at 50% context, not 95%
+MAX_THINKING_TOKENS=8000               # Reduce hidden thinking tokens
+```
 
-- `settings.json`
-  - Complete Go-team config: hooks, plugins (gopls-lsp, modern-go-guidelines, superpowers), statusLine, model.
-  - Installer deep-merges this into existing config.
+## Plugins (9 total)
 
-- `hooks/`
-  - `session-start.sh`: Two-mode ritual — full 6-step for serena projects, lightweight 2-step otherwise.
-  - `pre-tool-guard.sh`: Blocks `cat`, `head`, `tail`, `sed`, `awk`, `grep`, `rg`, `find`, `rm -rf`, `DROP TABLE/DATABASE`.
-  - `post-edit-memory.sh`: Throttled memory reminder — fires once per session, not per edit.
-  - `stop-context-check.sh`: Warns when assistant turn count exceeds 20.
+| Plugin | Source | Purpose |
+|--------|--------|---------|
+| `gopls-lsp` | claude-plugins-official | Go symbol navigation via LSP |
+| `modern-go-guidelines` | goland-claude-marketplace | Modern Go syntax guidelines |
+| `superpowers` | claude-plugins-official | Core SDLC skills (brainstorming, TDD, debugging, etc.) |
+| `reflexion` | context-engineering-kit | Self-refine + memorize insights to CLAUDE.md |
+| `kaizen` | context-engineering-kit | Root cause analysis (5 Whys, fishbone, A3) |
+| `sadd` | context-engineering-kit | Subagent-driven development with quality gates |
+| `mgrep` | Mixedbread-Grep | Semantic/AI-powered code search |
+| `context7` | claude-plugins-official | Library/framework documentation lookup |
+| `cartographer` | cartographer-marketplace | Codebase mapping |
 
-- `rules/`
-  - Policy library for decision quality and execution consistency.
-  - Discovery vs implementation separation, TDD behavior, plan format, architecture and review constraints.
+## Hooks (5 total)
 
-## MCP Tools Usage
+| Hook | Trigger | Behavior |
+|------|---------|----------|
+| `session-start.sh` | UserPromptSubmit (1x) | 6-step ritual (serena) or 2-step (lightweight) |
+| `pre-tool-guard.sh` | PreToolUse:Bash | Block cat/grep/find/sed/awk/rm -rf/DROP |
+| `filter-test-output.sh` | PreToolUse:Bash | Filter test output to FAIL/ERROR only |
+| `post-edit-memory.sh` | PostToolUse:Edit (1x) | Remind to write task-log memory |
+| `stop-context-check.sh` | Stop (>20 turns) | Warn to save session state |
 
-| Tool | Purpose | When to use |
-|---|---|---|
-| `serena` | Symbol-aware navigation/editing | Need exact definitions, call graph, or symbol-scoped edits |
-| `mgrep` | Semantic/AI-powered code search | Cross-file pattern discovery, understanding usage patterns |
-| `context7` | Verify external APIs/docs | Before writing code that uses external packages |
-| Built-in `Grep` | Simple regex search | Quick pattern matching when mgrep is overkill |
-| Built-in `Glob` | Find files by name | Locate files by path pattern |
+## Context Engineering Kit (CEK) Commands
 
-### Tool Selection Order
+On-demand only — zero token cost until invoked.
 
-1. `serena` for symbol-level discovery.
-2. `mgrep` for semantic cross-file search.
-3. Built-in `Grep`/`Glob` for simple pattern/file matching.
-4. `context7` before using any external API.
+| Command | When |
+|---------|------|
+| `/reflexion:reflect` | After implementation — self-refine output |
+| `/reflexion:memorize` | Persist lessons to CLAUDE.md |
+| `/kaizen:why` | Bug root cause — 5 Whys analysis |
+| `/kaizen:root-cause-tracing` | Trace bug through call stack |
+| `/kaizen:analyse-problem` | A3 one-page problem analysis |
+| `/do-in-parallel` | 2+ independent tasks — fresh subagent each |
+| `/do-and-judge` | Quality-critical — implement + judge verification |
+| `/do-competitively` | High-stakes — multiple solutions + judge synthesis |
+
+## Tool Selection Order
+
+| Need | Tool |
+|------|------|
+| Symbol definition/reference | `serena: find_symbol`, `find_referencing_symbols` |
+| Semantic code search | `mgrep` |
+| Simple regex pattern | Built-in `Grep` |
+| Find files by name | Built-in `Glob` |
+| Library API verification | `context7` (always before writing code) |
+| Symbol-level editing | `serena: replace_symbol_body`, `insert_after_symbol` |
+
+## Token Optimization Summary
+
+| Strategy | Savings |
+|----------|---------|
+| `.claudeignore` (exclude node_modules, builds) | Prevents thousands of irrelevant files in searches |
+| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=50` | Earlier compaction, cleaner context |
+| `MAX_THINKING_TOKENS=8000` | ~75% reduction in hidden thinking cost |
+| `ENABLE_TOOL_SEARCH=auto:5` | Defer MCP tool defs at 5% context |
+| `filter-test-output.sh` | Test suite 500+ lines → ~20 lines |
+| Conditional session ritual | Skip 4 tool calls for non-coding sessions |
+| Memory reminder throttle | 1x per session instead of every edit |
+| Subagent model selection | Haiku for research, Sonnet for implementation |
+| CEK commands (on-demand) | 0 token cost until invoked |
+
+## Validation Checklist
+
+- [ ] First prompt shows ritual from `session-start.sh`
+- [ ] Serena project → 6-step ritual; non-serena → 2-step
+- [ ] `Bash` with `cat`, `grep`, `rm -rf` blocked by `pre-tool-guard.sh`
+- [ ] `go test` output filtered to failures by `filter-test-output.sh`
+- [ ] First edit triggers memory reminder; subsequent edits silent
+- [ ] Long sessions (>20 turns) trigger context warning
+- [ ] `/plan` available as slash command
+- [ ] `/ask` available as slash command
+- [ ] `/reflexion:reflect` and `/kaizen:why` load on-demand
 
 ## Manual Setup
 
-1. Copy `CLAUDE.md` to `~/.claude/CLAUDE.md`.
-2. Copy `rules/*.md` to `~/.claude/rules/`.
-3. Copy `hooks/*.sh` to `~/.claude/hooks/` and `chmod +x`.
-4. Deep-merge `settings.json` into `~/.claude/settings.json`:
+If you prefer not to use the installer:
+
+1. Copy files to `~/.claude/`:
    ```bash
-   jq -s '.[0] * .[1]' ~/.claude/settings.json settings.json > /tmp/merged.json
-   mv /tmp/merged.json ~/.claude/settings.json
+   cp CLAUDE.md ~/.claude/CLAUDE.md
+   cp .claudeignore ~/.claude/.claudeignore
+   cp rules/*.md ~/.claude/rules/
+   cp hooks/*.sh ~/.claude/hooks/ && chmod +x ~/.claude/hooks/*.sh
+   cp commands/*.md ~/.claude/commands/
+   jq -s '.[0] * .[1]' ~/.claude/settings.json settings.json > /tmp/merged.json && mv /tmp/merged.json ~/.claude/settings.json
    ```
-5. Install MCP servers:
+
+2. Source environment variables:
+   ```bash
+   source env.sh
+   # Or append to ~/.zshrc manually
+   ```
+
+3. Install MCP servers:
    ```bash
    claude mcp add --scope user context7 -- npx -y @upstash/context7-mcp
    claude mcp add --scope user mgrep -- npx -y @mixedbread/mgrep mcp
    claude mcp add --scope user serena -- uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context=claude-code --project-from-cwd
    ```
 
-## Validation Checklist
-
-- First prompt in a new session shows ritual steps from `session-start.sh`.
-- Serena project gets 6-step ritual; non-serena project gets 2-step.
-- `Bash` command with `cat`, `grep`, `rm -rf` is blocked by `pre-tool-guard.sh`.
-- First edit triggers memory reminder; subsequent edits are silent.
-- Long sessions trigger context warning on stop.
-
-## Troubleshooting
-
-- **Hooks not running:** Confirm `settings.json` hook mapping exists and paths are correct. Verify execute permission: `chmod +x ~/.claude/hooks/*.sh`.
-- **Guard blocks expected command:** Review patterns in `hooks/pre-tool-guard.sh`. Narrow command scope instead of bypassing guardrails.
-- **No context warning on stop:** Confirm transcript path is provided by runtime and `Stop` hook is configured.
-- **Settings overwritten:** Restore from `~/.claude/settings.json.bak` and re-run installer.
-
-## Team Conventions
-
-- Treat these files as infrastructure code.
-- Update rules and hooks with explicit rationale in PR description.
-- Keep policy changes minimal, testable, and reversible.
+4. Install plugins (inside Claude Code):
+   ```
+   /plugin marketplace add obra/superpowers-marketplace
+   /plugin marketplace add NeoLabHQ/context-engineering-kit
+   /plugin install superpowers@superpowers-marketplace
+   /plugin install reflexion@context-engineering-kit
+   /plugin install kaizen@context-engineering-kit
+   /plugin install sadd@context-engineering-kit
+   ```

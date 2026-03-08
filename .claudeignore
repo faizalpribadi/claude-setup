@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+vendor/
+.npm/
+
+# Build artifacts
+dist/
+build/
+.next/
+out/
+bin/
+*.exe
+*.o
+*.so
+
+# Generated files
+*.min.js
+*.min.css
+*.map
+*.lock
+go.sum
+
+# Large data files
+*.csv
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE & tools
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Caches
+.cache/
+__pycache__/
+*.pyc
+.turbo/
+.parcel-cache/
+
+# CI/CD
+.github/
+.circleci/
+.gitlab-ci.yml
+
+# Media
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.mp4
+*.mp3
+
+# Claude internals (avoid self-referencing)
+plugins/marketplaces/*/node_modules/
+transcripts/
+debug/
+telemetry/
+stats-cache.json
+history.jsonl

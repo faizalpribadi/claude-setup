@@ -1,4 +1,5 @@
 {
+  "model": "opus",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -17,6 +18,10 @@
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/pre-tool-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/filter-test-output.sh"
           }
         ]
       }
@@ -51,7 +56,10 @@
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
     "modern-go-guidelines@goland-claude-marketplace": true,
-    "superpowers@claude-plugins-official": true
+    "superpowers@claude-plugins-official": true,
+    "reflexion@context-engineering-kit": true,
+    "kaizen@context-engineering-kit": true,
+    "sadd@context-engineering-kit": true
   },
   "extraKnownMarketplaces": {
     "goland-claude-marketplace": {
@@ -65,7 +73,12 @@
         "source": "github",
         "repo": "obra/superpowers-marketplace"
       }
+    },
+    "context-engineering-kit": {
+      "source": {
+        "source": "github",
+        "repo": "NeoLabHQ/context-engineering-kit"
+      }
     }
-  },
-  "model": "opus"
+  }
 }

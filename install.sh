@@ -25,7 +25,7 @@ echo -e "${RESET}"
 step "Checking prerequisites"
 
 command -v claude >/dev/null 2>&1 || fail "Claude Code not found. Install: npm install -g @anthropic-ai/claude-code"
-ok "Claude Code: $(claude --version 2>/dev/null | head -1)"
+ok "Claude Code found"
 
 command -v node >/dev/null 2>&1 || fail "Node.js not found."
 ok "Node.js: $(node --version)"
@@ -37,7 +37,7 @@ command -v git >/dev/null 2>&1 || fail "git not found."
 ok "git found"
 
 command -v bun >/dev/null 2>&1 && HAS_BUN=true || HAS_BUN=false
-$HAS_BUN && ok "bun: $(bun --version 2>/dev/null)" || warn "bun not found — statusLine will be skipped"
+$HAS_BUN && ok "bun: $(bun --version 2>/dev/null)" || warn "bun not found — statusLine and reflexion hook will be limited"
 
 command -v uvx >/dev/null 2>&1 && HAS_UVX=true || HAS_UVX=false
 $HAS_UVX && ok "uvx: $(uvx --version 2>/dev/null | head -1)" || warn "uvx not found — Serena will be skipped"
@@ -47,8 +47,10 @@ step "Creating ~/.claude directory structure"
 
 mkdir -p ~/.claude/rules
 mkdir -p ~/.claude/hooks
+mkdir -p ~/.claude/commands
 ok "~/.claude/rules/ ready"
 ok "~/.claude/hooks/ ready"
+ok "~/.claude/commands/ ready"
 
 # ── 3. CLAUDE.md ──────────────────────────────────────────
 step "Installing CLAUDE.md"
@@ -63,7 +65,17 @@ fi
 cp "$SCRIPT_DIR/CLAUDE.md" ~/.claude/CLAUDE.md
 ok "CLAUDE.md installed ($(wc -l < ~/.claude/CLAUDE.md | tr -d ' ') lines)"
 
-# ── 4. Rules ──────────────────────────────────────────────
+# ── 4. .claudeignore ─────────────────────────────────────
+step "Installing .claudeignore"
+
+if [ -f "$SCRIPT_DIR/.claudeignore" ]; then
+  cp "$SCRIPT_DIR/.claudeignore" ~/.claude/.claudeignore
+  ok ".claudeignore installed"
+else
+  warn ".claudeignore not found in $SCRIPT_DIR — skipped"
+fi
+
+# ── 5. Rules ──────────────────────────────────────────────
 step "Installing rules"
 
 RULES_DIR="$SCRIPT_DIR/rules"
@@ -75,7 +87,7 @@ for file in "$RULES_DIR"/*.md; do
   ok "rules/$name"
 done
 
-# ── 5. Hooks ──────────────────────────────────────────────
+# ── 6. Hooks ──────────────────────────────────────────────
 step "Installing hooks"
 
 HOOKS_DIR="$SCRIPT_DIR/hooks"
@@ -88,7 +100,21 @@ for file in "$HOOKS_DIR"/*.sh; do
   ok "hooks/$name (executable)"
 done
 
-# ── 6. settings.json (deep merge) ────────────────────────
+# ── 7. Slash commands ────────────────────────────────────
+step "Installing slash commands"
+
+COMMANDS_DIR="$SCRIPT_DIR/commands"
+if [ -d "$COMMANDS_DIR" ]; then
+  for file in "$COMMANDS_DIR"/*.md; do
+    name=$(basename "$file")
+    cp "$file" ~/.claude/commands/"$name"
+    ok "commands/$name → /${name%.md}"
+  done
+else
+  warn "commands/ directory not found — skipped"
+fi
+
+# ── 8. settings.json (deep merge) ────────────────────────
 step "Installing settings.json"
 
 SETTINGS_SRC="$SCRIPT_DIR/settings.json"
@@ -99,7 +125,6 @@ if [ -f ~/.claude/settings.json ]; then
   warn "Existing settings.json backed up → ~/.claude/settings.json.bak"
 
   # Deep merge: repo settings merged ON TOP of existing settings
-  # Existing keys not in repo are preserved (model overrides, custom plugins, etc.)
   MERGED=$(jq -s '.[0] * .[1]' ~/.claude/settings.json.bak "$SETTINGS_SRC")
   echo "$MERGED" | jq . > ~/.claude/settings.json
   ok "settings.json deep-merged (existing config preserved)"
@@ -108,7 +133,27 @@ else
   ok "settings.json installed (fresh)"
 fi
 
-# ── 7. MCP Servers ────────────────────────────────────────
+# ── 9. Environment variables ─────────────────────────────
+step "Configuring environment variables"
+
+ENV_MARKER="# Claude Code"
+ZSHRC="$HOME/.zshrc"
+
+if grep -q "$ENV_MARKER" "$ZSHRC" 2>/dev/null; then
+  ok "Environment variables already present in ~/.zshrc"
+else
+  cat >> "$ZSHRC" << 'ENVEOF'
+
+# Claude Code
+export ENABLE_TOOL_SEARCH=auto:5              # defer MCP tools at 5% context (default 10%)
+export DISABLE_NON_ESSENTIAL_MODEL_CALLS=1   # suppress background model calls
+export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=50    # compact at 50% context, not 95%
+export MAX_THINKING_TOKENS=8000              # reduce hidden thinking (default: 31999)
+ENVEOF
+  ok "Environment variables added to ~/.zshrc"
+fi
+
+# ── 10. MCP Servers ───────────────────────────────────────
 step "Installing MCP servers"
 
 install_mcp() {
@@ -134,10 +179,36 @@ else
   warn "Skipping serena (uvx not found). Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
 fi
 
-# ── 8. Verify ─────────────────────────────────────────────
+# ── 11. Plugins ───────────────────────────────────────────
+step "Installing plugins"
+
+install_plugin() {
+  local marketplace="$1" plugin="$2"
+  echo -e "  Installing ${BOLD}$plugin${RESET}..."
+  if claude plugin install "$plugin@$marketplace" 2>/dev/null; then
+    ok "$plugin installed"
+  else
+    warn "$plugin failed or already exists"
+  fi
+}
+
+# Add marketplaces
+claude plugin marketplace add obra/superpowers-marketplace 2>/dev/null || true
+claude plugin marketplace add JetBrains/go-modern-guidelines 2>/dev/null || true
+claude plugin marketplace add NeoLabHQ/context-engineering-kit 2>/dev/null || true
+
+install_plugin "claude-plugins-official" "gopls-lsp"
+install_plugin "superpowers-marketplace" "superpowers"
+install_plugin "goland-claude-marketplace" "modern-go-guidelines"
+install_plugin "context-engineering-kit" "reflexion"
+install_plugin "context-engineering-kit" "kaizen"
+install_plugin "context-engineering-kit" "sadd"
+
+# ── 12. Verify ────────────────────────────────────────────
 step "Verifying installation"
 
 ok "~/.claude/CLAUDE.md ($(wc -l < ~/.claude/CLAUDE.md | tr -d ' ') lines)"
+[ -f ~/.claude/.claudeignore ] && ok "~/.claude/.claudeignore" || warn ".claudeignore missing"
 
 for f in ~/.claude/rules/*.md; do
   ok "~/.claude/rules/$(basename "$f")"
@@ -147,29 +218,38 @@ for f in ~/.claude/hooks/*.sh; do
   ok "~/.claude/hooks/$(basename "$f") [executable: $([ -x "$f" ] && echo yes || echo NO)]"
 done
 
+for f in ~/.claude/commands/*.md; do
+  ok "~/.claude/commands/$(basename "$f") → /${f%.md}"
+done
+
 ok "~/.claude/settings.json"
 
 # ── Done ──────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}╔══════════════════════════════════════════════════╗${RESET}"
-echo -e "${BOLD}║           Installation Complete ✓                ║${RESET}"
+echo -e "${BOLD}║           Installation Complete                  ║${RESET}"
 echo -e "${BOLD}╚══════════════════════════════════════════════════╝${RESET}"
 echo ""
-echo -e "${YELLOW}Next steps:${RESET}"
+echo -e "${YELLOW}Activate environment:${RESET}"
+echo -e "  ${CYAN}source ~/.zshrc${RESET}"
 echo ""
-echo -e "  1. Verify in Claude Code:"
-echo -e "     ${CYAN}/mcp${RESET}     → serena ✓  context7 ✓  mgrep ✓"
-echo -e "     ${CYAN}/memory${RESET}  → CLAUDE.md + 7 rules loaded"
-echo -e "     ${CYAN}/hooks${RESET}   → 4 hooks active"
+echo -e "${YELLOW}Verify in Claude Code:${RESET}"
+echo -e "  ${CYAN}/mcp${RESET}       → serena, context7, mgrep"
+echo -e "  ${CYAN}/context${RESET}   → check context consumption"
+echo -e "  ${CYAN}/cost${RESET}      → track token usage"
 echo ""
-echo -e "  2. Install Superpowers (inside Claude Code):"
-echo -e "     ${CYAN}/plugin marketplace add obra/superpowers-marketplace${RESET}"
-echo -e "     ${CYAN}/plugin install superpowers@superpowers-marketplace${RESET}"
+echo -e "${YELLOW}Available slash commands:${RESET}"
+echo -e "  ${CYAN}/plan${RESET}      → switch to Opus + plan mode"
+echo -e "  ${CYAN}/ask${RESET}       → quick Q&A, minimal overhead"
 echo ""
-echo -e "  3. For each new project:"
-echo -e "     ${CYAN}cd your-project${RESET}"
-echo -e "     ${CYAN}uvx --from git+https://github.com/oraios/serena serena project create${RESET}"
+echo -e "${YELLOW}CEK commands (on-demand):${RESET}"
+echo -e "  ${CYAN}/reflexion:reflect${RESET}   → self-refine after implementation"
+echo -e "  ${CYAN}/reflexion:memorize${RESET}  → persist insights to CLAUDE.md"
+echo -e "  ${CYAN}/kaizen:why${RESET}          → 5 Whys root cause analysis"
+echo -e "  ${CYAN}/do-in-parallel${RESET}      → dispatch parallel subagents"
+echo -e "  ${CYAN}/do-and-judge${RESET}        → implement + judge verification"
 echo ""
-echo -e "  4. Login to mgrep:"
-echo -e "     ${CYAN}npx @mixedbread/mgrep login${RESET}"
+echo -e "${YELLOW}For new Go projects:${RESET}"
+echo -e "  ${CYAN}cd your-project${RESET}"
+echo -e "  ${CYAN}uvx --from git+https://github.com/oraios/serena serena project create${RESET}"
 echo ""
