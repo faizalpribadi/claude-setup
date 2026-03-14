@@ -1,56 +1,38 @@
-# Global Instructions
+@RTK.md
 
-## Identity
-World-class software architect. Principle-driven. Systems thinker.
-Correctness > speed. Simplicity > cleverness. Evidence > assumptions. YAGNI. SOLID.
+## Bash Hook
+All Bash commands pass through rtk-rewrite.sh (PreToolUse). Commands may be rewritten before execution — this is expected.
 
-## Compaction Instructions
-Preserve: active task from task-log.md, files being edited, last test output, pending decisions, code samples.
-Discard: exploration history, rejected alternatives, tool call details, full file contents already summarized.
+## Constraints
+- Thinking budget: 8000 tokens — avoid deep reasoning for simple tasks
+- Autocompact at 40% — prioritize concise outputs, avoid verbose exploration
+- Non-essential model calls disabled — no speculative reads or unnecessary tool calls
 
----
+## Search — MANDATORY Rules
+- NEVER use built-in `WebSearch` or `Grep` tools directly
+- ALL web searches: use `mgrep --web "query"` via the mgrep skill
+- ALL local file/code searches: use `mgrep "query"` via the mgrep skill
+- mgrep is the single replacement for WebSearch + Grep + Glob
 
-## Response
-- Answer directly. No preamble, no recap, no filler.
-- Prefer targeted diffs over full rewrites.
-- Max 1 clarifying question before acting.
-- Uncertain? Use tools. Never guess.
+## Tool Priority for Go Codebase
+1. `gopls-lsp` — symbol definition, references, hover
+2. `codegraph_*` — callers, callees, impact analysis (if `.codegraph/` exists)
+3. `ast-grep` — structural search/refactor
+4. `mgrep` — semantic/fuzzy search fallback
+Avoid plain grep if any of the above apply.
 
----
+## Context Protection — MANDATORY Rules
+- NEVER use `Bash` for commands producing >20 lines of output
+- NEVER use `Read` for analysis — use `ctx_execute_file` instead (Read only when editing)
+- NEVER use `WebFetch` — use `ctx_fetch_and_index` instead
+- Large output commands (test, build, logs, git log): use `ctx_execute` or `ctx_batch_execute`
+- Bash is ONLY for: git, mkdir, rm, mv, navigation, short-output commands
 
-## Session Start Ritual
-Hook auto-injects this per session. Two modes:
-- **Coding session** (`.serena` present): all 6 steps — list_memories, read task-log, read session-state, activate_project, check_onboarding, initial_instructions
-- **Non-coding session**: steps 1–2 only — list_memories, read task-log (if relevant)
+## External Docs
+For any external library (Fiber, gRPC-Go, GORM, etc): use context7 to fetch up-to-date docs before implementing.
 
----
+## Session Memory
+Use `search(query="...")` MCP tool before asking user for context that may exist in past sessions.
 
-## Subagent Discipline
-Use subagents for ANY codebase exploration that reads more than 3 files:
-```
-"Use a subagent to explore X — report back summary only, not raw content"
-```
-Never explore large codebases in main context. Exploration fills context and kills implementation quality.
-Model selection for subagents: `haiku` for research/exploration, `sonnet` for implementation/testing.
-
-## Tool Priorities
-- Symbol navigation → serena (`find_symbol`, `get_symbols_overview`, `find_referencing_symbols`)
-- Semantic/AI-powered search → mgrep
-- API/library verification → context7 (always before writing code that uses external APIs)
-
-## Context Engineering (CEK)
-After implementation → `/reflexion:reflect` then `/reflexion:memorize` (update CLAUDE.md with insights)
-Debugging → `/kaizen:why` (5 Whys root cause) or `/kaizen:root-cause-tracing` (call stack)
-Parallel tasks → `/do-in-parallel` (fresh subagent per task, auto quality gate)
-Quality-critical → `/do-and-judge` (implement + independent judge verification)
-
-## TDD Discipline
-RED → GREEN → REFACTOR. No implementation before failing test. No declaring done without running actual tests.
-
-## Forbidden
-- Guessing library API signatures without context7
-- Writing code before TDD RED step is confirmed
-- Declaring done without running actual tests
-- Adding complexity not required by current task
-- Skipping session start ritual
-- Continuing work when context >60% without saving session-state memory
+## CodeGraph
+If `.codegraph/` exists: prefer `codegraph_search`, `codegraph_callers`, `codegraph_impact` over grep for symbol navigation.

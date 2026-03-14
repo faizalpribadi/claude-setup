@@ -15,199 +15,149 @@ git clone <this-repo>
 cd claude-setup
 chmod +x install.sh
 ./install.sh
-source ~/.zshrc
 ```
 
 The installer:
 - Deep-merges `settings.json` (preserves your model, custom plugins)
 - Backs up existing `CLAUDE.md` and `settings.json`
-- Installs hooks, rules, slash commands, and `.claudeignore`
+- Installs hooks, read-once hook, commands, RTK.md, and `.claudeignore`
+- Installs ccusage if not found (`npm install -g ccusage`)
 - Sets up MCP servers (context7, mgrep, serena)
-- Installs plugins (superpowers, gopls-lsp, modern-go-guidelines, reflexion, kaizen, sadd)
-- Appends environment variables to `~/.zshrc`
-
-## Runtime Flow
-
-```mermaid
-flowchart TD
-    A[User submits prompt] --> B[UserPromptSubmit hook]
-    B --> C[session-start.sh]
-    C --> D{.serena/ exists?}
-
-    D -->|Yes| E[Full 6-step ritual]
-    D -->|No| F[Lightweight 2-step ritual]
-
-    E --> G[Assistant starts working]
-    F --> G
-
-    G --> H{Tool call?}
-
-    H -->|Bash| I[PreToolUse hooks]
-    I --> J[pre-tool-guard.sh]
-    J --> K{Blocked?}
-    K -->|cat/grep/find/sed/rm -rf| L[Block + suggest correct tool]
-    K -->|Test command| M[filter-test-output.sh]
-    M --> N[Show only FAIL/ERROR lines]
-    K -->|Safe command| O[Allow]
-
-    H -->|Edit/Write| P[PostToolUse hook]
-    P --> Q{First edit?}
-    Q -->|Yes| R[Memory reminder 1x]
-    Q -->|No| S[Silent]
-
-    G --> T[Session ends]
-    T --> U[Stop hook]
-    U --> V{Turns > 20?}
-    V -->|Yes| W[Warn to save state]
-    V -->|No| X[Exit]
-```
+- Installs plugins (8 total — see Plugins section)
+- Env vars managed via `settings.json` (no `.zshrc` modification)
 
 ## Project Structure
 
 ```
 .
-├── CLAUDE.md              # Global behavior contract (56 lines)
+├── CLAUDE.md              # Global behavior contract
+├── RTK.md                 # RTK token savings reference
 ├── .claudeignore          # Exclude node_modules, builds, media from context
-├── settings.json          # Hooks + plugins + statusLine + model config
-├── env.sh                 # Environment variables (token optimization)
+├── settings.json          # Hooks + plugins + statusLine + env vars
+├── env.sh                 # Env vars reference (fallback — settings.json is primary)
 ├── install.sh             # Smart installer with deep-merge + plugin setup
 ├── commands/
-│   ├── plan.md            # /plan → Opus + plan mode for architecture
-│   └── ask.md             # /ask  → minimal overhead Q&A
+│   ├── plan.md                   # /plan → plan mode
+│   ├── ask.md                    # /ask  → minimal overhead Q&A
+│   ├── plannotator-annotate.md   # /plannotator-annotate → annotate markdown
+│   └── plannotator-review.md     # /plannotator-review  → code review UI
 ├── hooks/
-│   ├── session-start.sh       # Two-mode ritual (serena vs lightweight)
-│   ├── pre-tool-guard.sh      # Block: cat/grep/find/sed/awk + destructive cmds
-│   ├── filter-test-output.sh  # Filter test output to failures only
-│   ├── post-edit-memory.sh    # Memory reminder (throttled: 1x per session)
-│   └── stop-context-check.sh  # Context warning on long sessions
-└── rules/
-    ├── anti-hallucination.md  # Verification checkpoints
-    ├── architecture.md        # Boundaries-first design
-    ├── code-review.md         # Structured review rubric
-    ├── memory-protocol.md     # Task log and session state protocol
-    ├── plan-writing.md        # Plan format with exact paths and verify commands
-    ├── tdd.md                 # RED → GREEN → REFACTOR discipline
-    └── tool-usage.md          # Tool selection + CEK commands reference
+│   ├── rtk-rewrite.sh         # PreToolUse:Bash — rewrite commands via RTK (token savings)
+│   ├── session-context.sh     # UserPromptSubmit — inject project/branch/cwd context
+│   ├── statusline.sh          # StatusLine — ccusage burn rate + block session % remaining
+│   ├── pre-compact.sh         # PreCompact — save git status to .claude-handOFF.md
+│   └── filter-test-output.sh  # PostToolUse:Bash — compress test output to failures only
+└── read-once/
+    └── hook.sh                # PreToolUse:Read — prevent redundant re-reads (80-95% savings)
 ```
 
 ## Environment Variables
 
+Managed via `settings.json` `"env"` block (no `.zshrc` changes needed):
+
 ```bash
 ENABLE_TOOL_SEARCH=auto:5              # Defer MCP tools at 5% context
 DISABLE_NON_ESSENTIAL_MODEL_CALLS=1    # Suppress background model calls
-CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=50     # Compact at 50% context, not 95%
+CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=40     # Compact at 40% context, not 95%
 MAX_THINKING_TOKENS=8000               # Reduce hidden thinking tokens
 ```
 
-## Plugins (9 total)
+## Plugins (8 total)
 
 | Plugin | Source | Purpose |
 |--------|--------|---------|
+| `superpowers` | claude-plugins-official | Core SDLC skills (brainstorming, TDD, debugging, plans) |
 | `gopls-lsp` | claude-plugins-official | Go symbol navigation via LSP |
-| `modern-go-guidelines` | goland-claude-marketplace | Modern Go syntax guidelines |
-| `superpowers` | claude-plugins-official | Core SDLC skills (brainstorming, TDD, debugging, etc.) |
-| `reflexion` | context-engineering-kit | Self-refine + memorize insights to CLAUDE.md |
-| `kaizen` | context-engineering-kit | Root cause analysis (5 Whys, fishbone, A3) |
-| `sadd` | context-engineering-kit | Subagent-driven development with quality gates |
-| `mgrep` | Mixedbread-Grep | Semantic/AI-powered code search |
-| `context7` | claude-plugins-official | Library/framework documentation lookup |
-| `cartographer` | cartographer-marketplace | Codebase mapping |
+| `mgrep` | Mixedbread-Grep | AI-powered code + web search (replaces Grep/WebSearch) |
+| `context-mode` | context-mode | Context window protection via sandbox execution |
+| `claude-mem` | thedotmack | Cross-session memory with timeline and smart search |
+| `plannotator` | plannotator | Interactive plan annotation and code review UI |
+| `ast-grep` | ast-grep-marketplace | Structural code search/refactor via AST patterns |
+| `cartographer` | cartographer-marketplace | Codebase mapping → docs/CODEBASE_MAP.md |
 
-## Hooks (5 total)
+## Hooks (6 total)
 
-| Hook | Trigger | Behavior |
-|------|---------|----------|
-| `session-start.sh` | UserPromptSubmit (1x) | 6-step ritual (serena) or 2-step (lightweight) |
-| `pre-tool-guard.sh` | PreToolUse:Bash | Block cat/grep/find/sed/awk/rm -rf/DROP |
-| `filter-test-output.sh` | PreToolUse:Bash | Filter test output to FAIL/ERROR only |
-| `post-edit-memory.sh` | PostToolUse:Edit (1x) | Remind to write task-log memory |
-| `stop-context-check.sh` | Stop (>20 turns) | Warn to save session state |
+| Hook | Event | Behavior |
+|------|-------|----------|
+| `rtk-rewrite.sh` | PreToolUse:Bash | Auto-rewrite commands via RTK (60-90% token savings) |
+| `session-context.sh` | UserPromptSubmit | Inject project, branch, cwd, go_module into context |
+| `statusline.sh` | StatusLine | ccusage burn rate + block session % remaining |
+| `pre-compact.sh` | PreCompact | Save git status to `.claude-handOFF.md` before compaction |
+| `filter-test-output.sh` | PostToolUse:Bash | Compress test output to FAIL/ERROR lines only |
+| `read-once/hook.sh` | PreToolUse:Read | Block redundant re-reads within a session (80-95% savings) |
 
-## Context Engineering Kit (CEK) Commands
+## Slash Commands (4 total)
 
-On-demand only — zero token cost until invoked.
+| Command | Purpose |
+|---------|---------|
+| `/plan` | Enter plan mode |
+| `/ask` | Quick Q&A, minimal overhead |
+| `/plannotator-annotate` | Open annotation UI for a markdown file |
+| `/plannotator-review` | Open code review UI for current changes |
 
-| Command | When |
-|---------|------|
-| `/reflexion:reflect` | After implementation — self-refine output |
-| `/reflexion:memorize` | Persist lessons to CLAUDE.md |
-| `/kaizen:why` | Bug root cause — 5 Whys analysis |
-| `/kaizen:root-cause-tracing` | Trace bug through call stack |
-| `/kaizen:analyse-problem` | A3 one-page problem analysis |
-| `/do-in-parallel` | 2+ independent tasks — fresh subagent each |
-| `/do-and-judge` | Quality-critical — implement + judge verification |
-| `/do-competitively` | High-stakes — multiple solutions + judge synthesis |
+## Mandatory Search Rules
 
-## Tool Selection Order
-
-| Need | Tool |
-|------|------|
-| Symbol definition/reference | `serena: find_symbol`, `find_referencing_symbols` |
-| Semantic code search | `mgrep` |
-| Simple regex pattern | Built-in `Grep` |
-| Find files by name | Built-in `Glob` |
-| Library API verification | `context7` (always before writing code) |
-| Symbol-level editing | `serena: replace_symbol_body`, `insert_after_symbol` |
+All search is routed through `mgrep` (enforced via CLAUDE.md):
+- Web search: `mgrep --web "query"` — never built-in WebSearch
+- Code search: `mgrep "query"` — never built-in Grep or Glob
 
 ## Token Optimization Summary
 
 | Strategy | Savings |
 |----------|---------|
-| `.claudeignore` (exclude node_modules, builds) | Prevents thousands of irrelevant files in searches |
-| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=50` | Earlier compaction, cleaner context |
+| RTK hook (`rtk-rewrite.sh`) | 60-90% on git/test/build commands |
+| read-once hook | 80-95% on repeated file reads within a session |
+| `.claudeignore` (exclude node_modules, builds) | Prevents irrelevant files in searches |
+| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=40` | Earlier compaction, cleaner context |
 | `MAX_THINKING_TOKENS=8000` | ~75% reduction in hidden thinking cost |
 | `ENABLE_TOOL_SEARCH=auto:5` | Defer MCP tool defs at 5% context |
 | `filter-test-output.sh` | Test suite 500+ lines → ~20 lines |
-| Conditional session ritual | Skip 4 tool calls for non-coding sessions |
-| Memory reminder throttle | 1x per session instead of every edit |
+| `context-mode` plugin | Large output sandboxed, not streamed to context |
 | Subagent model selection | Haiku for research, Sonnet for implementation |
-| CEK commands (on-demand) | 0 token cost until invoked |
 
-## Validation Checklist
+## Prerequisites
 
-- [ ] First prompt shows ritual from `session-start.sh`
-- [ ] Serena project → 6-step ritual; non-serena → 2-step
-- [ ] `Bash` with `cat`, `grep`, `rm -rf` blocked by `pre-tool-guard.sh`
-- [ ] `go test` output filtered to failures by `filter-test-output.sh`
-- [ ] First edit triggers memory reminder; subsequent edits silent
-- [ ] Long sessions (>20 turns) trigger context warning
-- [ ] `/plan` available as slash command
-- [ ] `/ask` available as slash command
-- [ ] `/reflexion:reflect` and `/kaizen:why` load on-demand
+Required:
+- `claude` — Claude Code CLI (`npm install -g @anthropic-ai/claude-code`)
+- `node` — Node.js
+- `jq` — JSON processor (`brew install jq`)
+- `git`
+
+Recommended (automatic token savings):
+- `rtk` — Rust Token Killer: https://github.com/rtk-ai/rtk#installation
+- `python3` — for statusline block % calculation
+- `bun` — faster JS execution: `curl -fsSL https://bun.sh/install | bash`
+
+Optional (semantic code navigation):
+- `uvx` — for Serena MCP: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- `gopls` — for gopls-lsp plugin: `go install golang.org/x/tools/gopls@latest`
 
 ## Manual Setup
 
-If you prefer not to use the installer:
+```bash
+cp CLAUDE.md RTK.md ~/.claude/
+cp .claudeignore ~/.claude/.claudeignore
+cp hooks/*.sh ~/.claude/hooks/ && chmod +x ~/.claude/hooks/*.sh
+cp read-once/hook.sh ~/.claude/read-once/hook.sh && chmod +x ~/.claude/read-once/hook.sh
+cp commands/*.md ~/.claude/commands/
+jq -s '.[0] * .[1]' ~/.claude/settings.json settings.json > /tmp/merged.json && mv /tmp/merged.json ~/.claude/settings.json
+```
 
-1. Copy files to `~/.claude/`:
-   ```bash
-   cp CLAUDE.md ~/.claude/CLAUDE.md
-   cp .claudeignore ~/.claude/.claudeignore
-   cp rules/*.md ~/.claude/rules/
-   cp hooks/*.sh ~/.claude/hooks/ && chmod +x ~/.claude/hooks/*.sh
-   cp commands/*.md ~/.claude/commands/
-   jq -s '.[0] * .[1]' ~/.claude/settings.json settings.json > /tmp/merged.json && mv /tmp/merged.json ~/.claude/settings.json
-   ```
+MCP servers:
+```bash
+claude mcp add --scope user context7 -- npx -y @upstash/context7-mcp
+claude mcp add --scope user mgrep -- npx -y @mixedbread/mgrep mcp
+# Optional: serena (requires uvx)
+claude mcp add --scope user serena -- uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context=claude-code --project-from-cwd
+```
 
-2. Source environment variables:
-   ```bash
-   source env.sh
-   # Or append to ~/.zshrc manually
-   ```
+## Validation Checklist
 
-3. Install MCP servers:
-   ```bash
-   claude mcp add --scope user context7 -- npx -y @upstash/context7-mcp
-   claude mcp add --scope user mgrep -- npx -y @mixedbread/mgrep mcp
-   claude mcp add --scope user serena -- uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context=claude-code --project-from-cwd
-   ```
-
-4. Install plugins (inside Claude Code):
-   ```
-   /plugin marketplace add obra/superpowers-marketplace
-   /plugin marketplace add NeoLabHQ/context-engineering-kit
-   /plugin install superpowers@superpowers-marketplace
-   /plugin install reflexion@context-engineering-kit
-   /plugin install kaizen@context-engineering-kit
-   /plugin install sadd@context-engineering-kit
-   ```
+- [ ] `statusline` shows burn rate + session % remaining
+- [ ] Bash commands auto-rewritten via RTK (run `rtk gain` to verify savings)
+- [ ] `mgrep "query"` returns semantic results (not raw grep)
+- [ ] First prompt injects `[Session] project=... branch=... cwd=...`
+- [ ] `go test` output compressed to failures only
+- [ ] `/compact` saves git status to `.claude-handOFF.md`
+- [ ] Re-reading unchanged files shows read-once advisory in logs
+- [ ] `/plan`, `/ask`, `/plannotator-annotate`, `/plannotator-review` available as slash commands

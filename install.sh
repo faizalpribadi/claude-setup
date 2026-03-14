@@ -36,21 +36,47 @@ ok "jq: $(jq --version)"
 command -v git >/dev/null 2>&1 || fail "git not found."
 ok "git found"
 
+command -v python3 >/dev/null 2>&1 && HAS_PYTHON=true || HAS_PYTHON=false
+$HAS_PYTHON && ok "python3: $(python3 --version 2>/dev/null)" || warn "python3 not found — statusline block % display will be limited"
+
 command -v bun >/dev/null 2>&1 && HAS_BUN=true || HAS_BUN=false
-$HAS_BUN && ok "bun: $(bun --version 2>/dev/null)" || warn "bun not found — statusLine and reflexion hook will be limited"
+$HAS_BUN && ok "bun: $(bun --version 2>/dev/null)" || warn "bun not found — install: curl -fsSL https://bun.sh/install | bash"
+
+command -v rtk >/dev/null 2>&1 && HAS_RTK=true || HAS_RTK=false
+if $HAS_RTK; then
+  RTK_VERSION=$(rtk --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+  ok "rtk: $RTK_VERSION"
+else
+  warn "rtk not found — token savings hook will be skipped. Install: https://github.com/rtk-ai/rtk#installation"
+fi
+
+command -v ccusage >/dev/null 2>&1 && HAS_CCUSAGE=true || HAS_CCUSAGE=false
+if ! $HAS_CCUSAGE; then
+  echo -e "  Installing ccusage..."
+  if npm install -g ccusage 2>/dev/null; then
+    ok "ccusage installed"
+    HAS_CCUSAGE=true
+  else
+    warn "ccusage install failed — statusline will show partial data. Install manually: npm install -g ccusage"
+  fi
+else
+  ok "ccusage: $(ccusage --version 2>/dev/null | head -1)"
+fi
 
 command -v uvx >/dev/null 2>&1 && HAS_UVX=true || HAS_UVX=false
-$HAS_UVX && ok "uvx: $(uvx --version 2>/dev/null | head -1)" || warn "uvx not found — Serena will be skipped"
+$HAS_UVX && ok "uvx: $(uvx --version 2>/dev/null | head -1)" || warn "uvx not found — Serena MCP will be skipped"
+
+command -v gopls >/dev/null 2>&1 && ok "gopls found" || warn "gopls not found — gopls-lsp plugin will be limited. Install: go install golang.org/x/tools/gopls@latest"
 
 # ── 2. Directory structure ────────────────────────────────
 step "Creating ~/.claude directory structure"
 
-mkdir -p ~/.claude/rules
 mkdir -p ~/.claude/hooks
 mkdir -p ~/.claude/commands
-ok "~/.claude/rules/ ready"
+mkdir -p ~/.claude/read-once
 ok "~/.claude/hooks/ ready"
 ok "~/.claude/commands/ ready"
+ok "~/.claude/read-once/ ready"
 
 # ── 3. CLAUDE.md ──────────────────────────────────────────
 step "Installing CLAUDE.md"
@@ -65,7 +91,17 @@ fi
 cp "$SCRIPT_DIR/CLAUDE.md" ~/.claude/CLAUDE.md
 ok "CLAUDE.md installed ($(wc -l < ~/.claude/CLAUDE.md | tr -d ' ') lines)"
 
-# ── 4. .claudeignore ─────────────────────────────────────
+# ── 4. RTK.md ─────────────────────────────────────────────
+step "Installing RTK.md"
+
+if [ -f "$SCRIPT_DIR/RTK.md" ]; then
+  cp "$SCRIPT_DIR/RTK.md" ~/.claude/RTK.md
+  ok "RTK.md installed"
+else
+  warn "RTK.md not found in $SCRIPT_DIR — skipped"
+fi
+
+# ── 5. .claudeignore ─────────────────────────────────────
 step "Installing .claudeignore"
 
 if [ -f "$SCRIPT_DIR/.claudeignore" ]; then
@@ -74,18 +110,6 @@ if [ -f "$SCRIPT_DIR/.claudeignore" ]; then
 else
   warn ".claudeignore not found in $SCRIPT_DIR — skipped"
 fi
-
-# ── 5. Rules ──────────────────────────────────────────────
-step "Installing rules"
-
-RULES_DIR="$SCRIPT_DIR/rules"
-[ -d "$RULES_DIR" ] || fail "rules/ directory not found in $SCRIPT_DIR"
-
-for file in "$RULES_DIR"/*.md; do
-  name=$(basename "$file")
-  cp "$file" ~/.claude/rules/"$name"
-  ok "rules/$name"
-done
 
 # ── 6. Hooks ──────────────────────────────────────────────
 step "Installing hooks"
@@ -100,7 +124,19 @@ for file in "$HOOKS_DIR"/*.sh; do
   ok "hooks/$name (executable)"
 done
 
-# ── 7. Slash commands ────────────────────────────────────
+# ── 7. read-once hook ─────────────────────────────────────
+step "Installing read-once hook"
+
+READ_ONCE_DIR="$SCRIPT_DIR/read-once"
+if [ -d "$READ_ONCE_DIR" ]; then
+  cp "$READ_ONCE_DIR/hook.sh" ~/.claude/read-once/hook.sh
+  chmod +x ~/.claude/read-once/hook.sh
+  ok "read-once/hook.sh (executable)"
+else
+  warn "read-once/ directory not found in $SCRIPT_DIR — skipped"
+fi
+
+# ── 8. Slash commands ────────────────────────────────────
 step "Installing slash commands"
 
 COMMANDS_DIR="$SCRIPT_DIR/commands"
@@ -114,7 +150,7 @@ else
   warn "commands/ directory not found — skipped"
 fi
 
-# ── 8. settings.json (deep merge) ────────────────────────
+# ── 9. settings.json (deep merge) ────────────────────────
 step "Installing settings.json"
 
 SETTINGS_SRC="$SCRIPT_DIR/settings.json"
@@ -131,26 +167,6 @@ if [ -f ~/.claude/settings.json ]; then
 else
   cp "$SETTINGS_SRC" ~/.claude/settings.json
   ok "settings.json installed (fresh)"
-fi
-
-# ── 9. Environment variables ─────────────────────────────
-step "Configuring environment variables"
-
-ENV_MARKER="# Claude Code"
-ZSHRC="$HOME/.zshrc"
-
-if grep -q "$ENV_MARKER" "$ZSHRC" 2>/dev/null; then
-  ok "Environment variables already present in ~/.zshrc"
-else
-  cat >> "$ZSHRC" << 'ENVEOF'
-
-# Claude Code
-export ENABLE_TOOL_SEARCH=auto:5              # defer MCP tools at 5% context (default 10%)
-export DISABLE_NON_ESSENTIAL_MODEL_CALLS=1   # suppress background model calls
-export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=50    # compact at 50% context, not 95%
-export MAX_THINKING_TOKENS=8000              # reduce hidden thinking (default: 31999)
-ENVEOF
-  ok "Environment variables added to ~/.zshrc"
 fi
 
 # ── 10. MCP Servers ───────────────────────────────────────
@@ -194,25 +210,33 @@ install_plugin() {
 
 # Add marketplaces
 claude plugin marketplace add obra/superpowers-marketplace 2>/dev/null || true
-claude plugin marketplace add JetBrains/go-modern-guidelines 2>/dev/null || true
-claude plugin marketplace add NeoLabHQ/context-engineering-kit 2>/dev/null || true
+claude plugin marketplace add affaan-m/everything-claude-code 2>/dev/null || true
+claude plugin marketplace add mixedbread-ai/mgrep 2>/dev/null || true
+claude plugin marketplace add mksglu/context-mode 2>/dev/null || true
+claude plugin marketplace add thedotmack/claude-mem 2>/dev/null || true
+claude plugin marketplace add backnotprop/plannotator 2>/dev/null || true
+claude plugin marketplace add ast-grep/agent-skill 2>/dev/null || true
+claude plugin marketplace add kingbootoshi/cartographer 2>/dev/null || true
+claude plugin marketplace add anthropics/healthcare 2>/dev/null || true
 
+# Core plugins
+install_plugin "claude-plugins-official" "superpowers"
 install_plugin "claude-plugins-official" "gopls-lsp"
-install_plugin "superpowers-marketplace" "superpowers"
-install_plugin "goland-claude-marketplace" "modern-go-guidelines"
-install_plugin "context-engineering-kit" "reflexion"
-install_plugin "context-engineering-kit" "kaizen"
-install_plugin "context-engineering-kit" "sadd"
+install_plugin "Mixedbread-Grep" "mgrep"
+install_plugin "context-mode" "context-mode"
+
+# Productivity plugins
+install_plugin "thedotmack" "claude-mem"
+install_plugin "plannotator" "plannotator"
+install_plugin "ast-grep-marketplace" "ast-grep"
+install_plugin "cartographer-marketplace" "cartographer"
 
 # ── 12. Verify ────────────────────────────────────────────
 step "Verifying installation"
 
 ok "~/.claude/CLAUDE.md ($(wc -l < ~/.claude/CLAUDE.md | tr -d ' ') lines)"
 [ -f ~/.claude/.claudeignore ] && ok "~/.claude/.claudeignore" || warn ".claudeignore missing"
-
-for f in ~/.claude/rules/*.md; do
-  ok "~/.claude/rules/$(basename "$f")"
-done
+[ -f ~/.claude/read-once/hook.sh ] && ok "~/.claude/read-once/hook.sh [executable: $([ -x ~/.claude/read-once/hook.sh ] && echo yes || echo NO)]" || warn "read-once/hook.sh missing"
 
 for f in ~/.claude/hooks/*.sh; do
   ok "~/.claude/hooks/$(basename "$f") [executable: $([ -x "$f" ] && echo yes || echo NO)]"
@@ -230,26 +254,25 @@ echo -e "${BOLD}╔════════════════════�
 echo -e "${BOLD}║           Installation Complete                  ║${RESET}"
 echo -e "${BOLD}╚══════════════════════════════════════════════════╝${RESET}"
 echo ""
-echo -e "${YELLOW}Activate environment:${RESET}"
-echo -e "  ${CYAN}source ~/.zshrc${RESET}"
-echo ""
 echo -e "${YELLOW}Verify in Claude Code:${RESET}"
-echo -e "  ${CYAN}/mcp${RESET}       → serena, context7, mgrep"
-echo -e "  ${CYAN}/context${RESET}   → check context consumption"
-echo -e "  ${CYAN}/cost${RESET}      → track token usage"
+echo -e "  ${CYAN}/mcp${RESET}       → context7, mgrep (+ serena if uvx installed)"
+echo -e "  ${CYAN}/plugins${RESET}   → superpowers, gopls-lsp, mgrep, context-mode, claude-mem, plannotator, ast-grep, cartographer (8 total)"
 echo ""
 echo -e "${YELLOW}Available slash commands:${RESET}"
-echo -e "  ${CYAN}/plan${RESET}      → switch to Opus + plan mode"
-echo -e "  ${CYAN}/ask${RESET}       → quick Q&A, minimal overhead"
+echo -e "  ${CYAN}/plan${RESET}               → plan mode"
+echo -e "  ${CYAN}/ask${RESET}                → quick Q&A, minimal overhead"
+echo -e "  ${CYAN}/plannotator-annotate${RESET} → annotate a markdown file"
+echo -e "  ${CYAN}/plannotator-review${RESET}   → code review current changes"
 echo ""
-echo -e "${YELLOW}CEK commands (on-demand):${RESET}"
-echo -e "  ${CYAN}/reflexion:reflect${RESET}   → self-refine after implementation"
-echo -e "  ${CYAN}/reflexion:memorize${RESET}  → persist insights to CLAUDE.md"
-echo -e "  ${CYAN}/kaizen:why${RESET}          → 5 Whys root cause analysis"
-echo -e "  ${CYAN}/do-in-parallel${RESET}      → dispatch parallel subagents"
-echo -e "  ${CYAN}/do-and-judge${RESET}        → implement + judge verification"
+echo -e "${YELLOW}Key behaviors:${RESET}"
+echo -e "  ${CYAN}rtk${RESET}        → auto-rewrites bash commands for token savings (60-90%)"
+echo -e "  ${CYAN}statusline${RESET} → shows session cost, burn rate + block % remaining"
+echo -e "  ${CYAN}mgrep${RESET}      → mandatory replacement for WebSearch + Grep + Glob"
 echo ""
-echo -e "${YELLOW}For new Go projects:${RESET}"
-echo -e "  ${CYAN}cd your-project${RESET}"
-echo -e "  ${CYAN}uvx --from git+https://github.com/oraios/serena serena project create${RESET}"
+echo -e "${YELLOW}Optional — RTK token savings:${RESET}"
+echo -e "  ${CYAN}https://github.com/rtk-ai/rtk#installation${RESET}"
+echo ""
+echo -e "${YELLOW}Optional — Serena MCP (semantic code navigation):${RESET}"
+echo -e "  ${CYAN}curl -LsSf https://astral.sh/uv/install.sh | sh${RESET}"
+echo -e "  ${CYAN}cd your-project && uvx --from git+https://github.com/oraios/serena serena project create${RESET}"
 echo ""
