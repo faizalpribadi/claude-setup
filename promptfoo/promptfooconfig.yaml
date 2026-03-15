@@ -1,0 +1,18 @@
+# Promptfoo config for evaluating ~/.claude session-context hints
+description: "Claude Code setup prompt evaluation"
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      temperature: 0
+
+# Prompt template (uses vars.prompt)
+prompts:
+  - "{{prompt}}"
+
+defaultTest:
+  options:
+    provider: anthropic:messages:claude-sonnet-4-6
+
+tests:
+  - file: tests/session-context-hints.yaml

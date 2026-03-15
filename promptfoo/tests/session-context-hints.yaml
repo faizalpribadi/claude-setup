@@ -1,0 +1,69 @@
+# Tests that verify session-context.sh hint injection works correctly
+# These test SCRIPT OUTPUT only — no API cost, no ANTHROPIC_API_KEY required
+# Run: cd ~/.claude/promptfoo && promptfoo eval --filter-pattern "session-context"
+
+- description: "Go task hint triggers on .go mention"
+  vars:
+    prompt: "refactor this handler.go file"
+  assert:
+    - type: javascript
+      value: |
+        const { execSync } = require('child_process');
+        const hook = process.env.HOME + '/.claude/hooks/session-context.sh';
+        const result = execSync(`echo '{"prompt":"refactor this handler.go file"}' | ${hook}`).toString();
+        return result.includes('gopls') || result.includes('Go task');
+
+- description: "Debug hint triggers on fix/error keywords"
+  vars:
+    prompt: "fix this bug in the service"
+  assert:
+    - type: javascript
+      value: |
+        const { execSync } = require('child_process');
+        const hook = process.env.HOME + '/.claude/hooks/session-context.sh';
+        const result = execSync(`echo '{"prompt":"fix this bug in the service"}' | ${hook}`).toString();
+        return result.includes('systematic-debugging') || result.includes('Debug task');
+
+- description: "Implementation hint triggers on implement keyword"
+  vars:
+    prompt: "implement a new endpoint for user registration"
+  assert:
+    - type: javascript
+      value: |
+        const { execSync } = require('child_process');
+        const hook = process.env.HOME + '/.claude/hooks/session-context.sh';
+        const result = execSync(`echo '{"prompt":"implement a new endpoint for user registration"}' | ${hook}`).toString();
+        return result.includes('brainstorm') || result.includes('Implementation task');
+
+- description: "OpenAPI hint triggers on openapi keyword"
+  vars:
+    prompt: "update the openapi spec for this endpoint"
+  assert:
+    - type: javascript
+      value: |
+        const { execSync } = require('child_process');
+        const hook = process.env.HOME + '/.claude/hooks/session-context.sh';
+        const result = execSync(`echo '{"prompt":"update the openapi spec for this endpoint"}' | ${hook}`).toString();
+        return result.includes('generated') || result.includes('OpenAPI task');
+
+- description: "Large output hint triggers on docker keyword"
+  vars:
+    prompt: "check docker logs for the service"
+  assert:
+    - type: javascript
+      value: |
+        const { execSync } = require('child_process');
+        const hook = process.env.HOME + '/.claude/hooks/session-context.sh';
+        const result = execSync(`echo '{"prompt":"check docker logs for the service"}' | ${hook}`).toString();
+        return result.includes('ctx_execute') || result.includes('large output');
+
+- description: "Search hint triggers on cari keyword"
+  vars:
+    prompt: "cari function untuk handle JWT"
+  assert:
+    - type: javascript
+      value: |
+        const { execSync } = require('child_process');
+        const hook = process.env.HOME + '/.claude/hooks/session-context.sh';
+        const result = execSync(`echo '{"prompt":"cari function untuk handle JWT"}' | ${hook}`).toString();
+        return result.includes('mgrep') || result.includes('Search task');

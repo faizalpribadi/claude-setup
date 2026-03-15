@@ -33,7 +33,7 @@ fi
 
 # Go code work → tool priority reminder
 if echo "$PROMPT" | grep -qiE '\.go|func |struct |interface |go\.mod|handler|repository|service|middleware|migration'; then
-  HINTS+=("[Hint] Go task: tool priority = gopls-lsp → codegraph → mgrep (avoid plain grep)")
+  HINTS+=("[Hint] Go task: tool priority = serena (find_symbol/get_symbols_overview) → gopls-lsp → codegraph → mgrep (avoid plain grep)")
 fi
 
 # OpenAPI/codegen work

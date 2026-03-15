@@ -169,6 +169,10 @@ else
   ok "settings.json installed (fresh)"
 fi
 
+# Normalize any hardcoded home paths → current user's $HOME
+sed -i.bak "s|/Users/[^/\"']*/\.claude|$HOME/.claude|g" ~/.claude/settings.json && rm -f ~/.claude/settings.json.bak
+ok "settings.json paths normalized to $HOME"
+
 # ── 10. MCP Servers ───────────────────────────────────────
 step "Installing MCP servers"
 

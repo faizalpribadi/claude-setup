@@ -14,11 +14,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/faizalpribadi/.claude/hooks/ctx-guard.sh"
+            "command": "~/.claude/hooks/ctx-guard.sh"
           },
           {
             "type": "command",
-            "command": "/Users/faizalpribadi/.claude/hooks/rtk-rewrite.sh"
+            "command": "~/.claude/hooks/rtk-rewrite.sh"
           }
         ]
       },
@@ -38,11 +38,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/faizalpribadi/.claude/hooks/filter-test-output.sh"
+            "command": "~/.claude/hooks/filter-test-output.sh"
           },
           {
             "type": "command",
-            "command": "/Users/faizalpribadi/.claude/hooks/codegraph-sync.sh"
+            "command": "~/.claude/hooks/codegraph-sync.sh"
           }
         ]
       }
@@ -52,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/faizalpribadi/.claude/hooks/session-context.sh"
+            "command": "~/.claude/hooks/session-context.sh"
           }
         ]
       }
@@ -62,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/faizalpribadi/.claude/hooks/pre-compact.sh"
+            "command": "~/.claude/hooks/pre-compact.sh"
           }
         ]
       }
@@ -70,7 +70,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/Users/faizalpribadi/.claude/hooks/context-bar.sh",
+    "command": "~/.claude/hooks/context-bar.sh",
     "padding": 0
   },
   "enabledPlugins": {

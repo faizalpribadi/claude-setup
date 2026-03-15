@@ -15,10 +15,11 @@ All Bash commands pass through rtk-rewrite.sh (PreToolUse). Commands may be rewr
 - mgrep is the single replacement for WebSearch + Grep + Glob
 
 ## Tool Priority for Go Codebase
-1. `gopls-lsp` — symbol definition, references, hover
-2. `codegraph_*` — callers, callees, impact analysis (if `.codegraph/` exists)
-3. `ast-grep` — structural search/refactor
-4. `mgrep` — semantic/fuzzy search fallback
+1. `serena` — find_symbol, get_symbols_overview, find_referencing_symbols (symbol navigation lintas file/service)
+2. `gopls-lsp` — hover, diagnostics, type info
+3. `codegraph_*` — callers, callees, impact analysis (if `.codegraph/` exists)
+4. `ast-grep` — structural search/refactor
+5. `mgrep` — string/regex/fuzzy search fallback
 Avoid plain grep if any of the above apply.
 
 ## Context Protection — MANDATORY Rules
