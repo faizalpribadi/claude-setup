@@ -23,11 +23,33 @@
         ]
       },
       {
+        "matcher": "WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/websearch-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/webfetch-guard.sh"
+          }
+        ]
+      },
+      {
         "matcher": "Read",
         "hooks": [
           {
             "type": "command",
             "command": "~/.claude/read-once/hook.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/read-guard.sh"
           }
         ]
       }

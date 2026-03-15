@@ -45,11 +45,14 @@ The installer:
 ├── hooks/
 │   ├── rtk-rewrite.sh         # PreToolUse:Bash — rewrite commands via RTK (token savings)
 │   ├── ctx-guard.sh           # PreToolUse:Bash — block high-output commands (docker logs, git log, etc.)
+│   ├── websearch-guard.sh     # PreToolUse:WebSearch — hard block WebSearch → mgrep --web
+│   ├── webfetch-guard.sh      # PreToolUse:WebFetch — hard block WebFetch → ctx_fetch_and_index
+│   ├── read-guard.sh          # PreToolUse:Read — advisory hint for .go files (try serena first)
 │   ├── session-context.sh     # UserPromptSubmit — inject context + rule-based prompt enrichment
 │   ├── context-bar.sh         # StatusLine — ccusage burn rate + block session % remaining
 │   ├── pre-compact.sh         # PreCompact — save git status to .claude-handOFF.md
 │   ├── filter-test-output.sh  # PostToolUse:Bash — compress test output to failures only
-│   ├── codegraph-sync.sh      # PostToolUse:Bash — auto-sync .codegraph/ after git operations
+│   ├── codegraph-sync.sh      # PostToolUse:Bash — auto-sync + auto-init .codegraph/ after git ops
 │   └── statusline.sh          # Legacy statusline (superseded by context-bar.sh)
 ├── read-once/
 │   └── hook.sh                # PreToolUse:Read — prevent redundant re-reads (80-95% savings)
@@ -129,17 +132,20 @@ initial_prompt: |
 - `find_referencing_symbols` — find all callers of a function/type (like LSP references)
 - `replace_symbol_body` — surgical symbol-level edits without touching the whole file
 
-## Hooks (8 total)
+## Hooks (11 total)
 
 | Hook | Event | Behavior |
 |------|-------|----------|
 | `rtk-rewrite.sh` | PreToolUse:Bash | Auto-rewrite commands via RTK (60-90% token savings) |
 | `ctx-guard.sh` | PreToolUse:Bash | Block high-output commands: `docker logs`, `kubectl logs`, `git log`, `journalctl`, `cat *.log` — forces `ctx_execute` instead |
+| `websearch-guard.sh` | PreToolUse:WebSearch | **Hard block** direct WebSearch — redirects to `mgrep --web "query"` |
+| `webfetch-guard.sh` | PreToolUse:WebFetch | **Hard block** direct WebFetch — redirects to `ctx_fetch_and_index(url=...)` |
+| `read-guard.sh` | PreToolUse:Read | Advisory hint for `.go` files — suggests serena before reading full file |
 | `session-context.sh` | UserPromptSubmit | Inject project/branch/cwd/go_module + rule-based hints (see below) |
 | `context-bar.sh` | StatusLine | ccusage burn rate + block session % remaining |
 | `pre-compact.sh` | PreCompact | Save git status to `.claude-handOFF.md` before compaction |
 | `filter-test-output.sh` | PostToolUse:Bash | Compress test output to FAIL/ERROR lines only |
-| `codegraph-sync.sh` | PostToolUse:Bash | Auto-sync `.codegraph/` index after git pull/merge/checkout |
+| `codegraph-sync.sh` | PostToolUse:Bash | Auto-sync `.codegraph/` index after git ops; **auto-init** if `go.mod` present |
 | `read-once/hook.sh` | PreToolUse:Read | Block redundant re-reads within a session (80-95% savings) |
 
 ### session-context.sh — Rule-Based Prompt Enrichment

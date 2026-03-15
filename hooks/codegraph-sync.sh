@@ -29,6 +29,10 @@ for _ in 1 2 3 4 5; do
 done
 
 if [ -z "$CODEGRAPH_ROOT" ]; then
+  # Auto-init: if go.mod exists in CWD but .codegraph/ never initialized
+  if [ -f "$CWD/go.mod" ] && [ ! -d "$CWD/.codegraph" ]; then
+    (cd "$CWD" && codegraph init . > /tmp/codegraph-init.log 2>&1) &
+  fi
   exit 0
 fi
 
