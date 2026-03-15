@@ -53,6 +53,7 @@ The installer:
 │   ├── pre-compact.sh         # PreCompact — save git status to .claude-handOFF.md
 │   ├── filter-test-output.sh  # PostToolUse:Bash — compress test output to failures only
 │   ├── codegraph-sync.sh      # PostToolUse:Bash — auto-sync + auto-init .codegraph/ after git ops
+│   ├── serena-auto-init.sh    # PostToolUse:Bash — auto-init .serena/project.yml for Go projects
 │   └── statusline.sh          # Legacy statusline (superseded by context-bar.sh)
 ├── read-once/
 │   └── hook.sh                # PreToolUse:Read — prevent redundant re-reads (80-95% savings)
@@ -132,7 +133,7 @@ initial_prompt: |
 - `find_referencing_symbols` — find all callers of a function/type (like LSP references)
 - `replace_symbol_body` — surgical symbol-level edits without touching the whole file
 
-## Hooks (11 total)
+## Hooks (12 total)
 
 | Hook | Event | Behavior |
 |------|-------|----------|
@@ -146,6 +147,7 @@ initial_prompt: |
 | `pre-compact.sh` | PreCompact | Save git status to `.claude-handOFF.md` before compaction |
 | `filter-test-output.sh` | PostToolUse:Bash | Compress test output to FAIL/ERROR lines only |
 | `codegraph-sync.sh` | PostToolUse:Bash | Auto-sync `.codegraph/` index after git ops; **auto-init** if `go.mod` present |
+| `serena-auto-init.sh` | PostToolUse:Bash | Auto-generate `.serena/project.yml` from `go.mod` + dir scan when serena not yet initialized |
 | `read-once/hook.sh` | PreToolUse:Read | Block redundant re-reads within a session (80-95% savings) |
 
 ### session-context.sh — Rule-Based Prompt Enrichment
