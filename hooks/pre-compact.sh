@@ -1,22 +1,51 @@
 #!/bin/bash
 # PreCompact hook - saves context before compaction
 
-HANDOFF_FILE="$CLAUDE_PROJECT_DIR/.claude-handOFF.md"
+# Get stdin first (before any other operations)
+INPUT=$(cat)
+
+# Try multiple ways to get project directory
+# Priority: 1. env var, 2. stdin cwd field
+if [ -n "$CLAUDE_PROJECT_DIR" ] && [ -d "$CLAUDE_PROJECT_DIR" ]; then
+    PROJECT_DIR="$CLAUDE_PROJECT_DIR"
+else
+    # Get from stdin - Claude Code always passes 'cwd' in hook input
+    # For PreCompact, it's triggered by Compact or Task tool
+    PROJECT_DIR=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+    
+    # Fallback: use pwd (current working directory)
+    if [ -z "$PROJECT_DIR" ] || [ ! -d "$PROJECT_DIR" ]; then
+        PROJECT_DIR=$(pwd)
+    fi
+fi
+
+# Verify PROJECT_DIR exists and is writable
+if [ -z "$PROJECT_DIR" ] || [ ! -d "$PROJECT_DIR" ]; then
+    echo "$INPUT"
+    exit 0
+fi
+
+HANDOFF_FILE="$PROJECT_DIR/.claude-handOFF.md"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M')
 
-# Get session info from stdin if available
-INPUT=$(cat)
-TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // "unknown"')
+# PreCompact fires only before actual compaction (auto or manual) — always write handoff
+# Create handoff file if it doesn't exist
+if [ ! -f "$HANDOFF_FILE" ]; then
+    cat > "$HANDOFF_FILE" << 'HEADER'
+# Claude Code HandOFF
 
-# Only run on manual /compact or when context is getting full
-if [ "$TOOL_NAME" = "Compact" ] || [ "$TOOL_NAME" = "Task" ]; then
-    # Get recent file changes from git
-    RECENT_CHANGES=$(git status --short 2>/dev/null | head -20)
-    
-    # Append to handoff file
-    cat >> "$HANDOFF_FILE" << EOF
+This file saves context before compaction for continuity in next session.
 
 ---
+HEADER
+fi
+
+# Get recent file changes from git
+cd "$PROJECT_DIR" && RECENT_CHANGES=$(git status --short 2>/dev/null | head -20)
+
+# Append to handoff file
+cat >> "$HANDOFF_FILE" << EOF
+
 ## Session: $TIMESTAMP
 
 ### Files Changed
@@ -25,6 +54,5 @@ $RECENT_CHANGES
 ### Context Summary
 Auto-saved before compaction
 EOF
-fi
 
 echo "$INPUT"
