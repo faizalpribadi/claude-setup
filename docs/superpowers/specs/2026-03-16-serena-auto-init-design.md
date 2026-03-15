@@ -37,7 +37,6 @@ This matches the existing `codegraph-sync.sh` pattern exactly — consistent, no
 
 **Event:** `PostToolUse:Bash`
 **Trigger conditions:**
-- `uvx` is available (graceful degradation if not)
 - `go.mod` found in CWD or up to 3 parent dirs
 - `.serena/project.yml` does NOT already exist (idempotent)
 
@@ -72,7 +71,7 @@ Generation logic:
 - **module path**: `grep '^module' go.mod | awk '{print $2}'`
 - **project_name**: `basename <module_path>`
 - **top_dirs**: `find . -maxdepth 2 -name '*.go' | cut -d/ -f2 | sort -u | head -20`
-- **deps**: `grep -oE 'fiber|gorm|google.golang.org/grpc|oapi-codegen|go-redis|confluent-kafka|nats-io' go.mod | sort -u`
+- **deps**: grep scoped to the `require (...)` block in go.mod — `awk '/^require/,/^\)/' go.mod | grep -oE 'fiber|gorm|google\.golang\.org/grpc|oapi-codegen|go-redis|confluent-kafka|nats-io' | sort -u`
 
 ---
 
@@ -89,7 +88,6 @@ Generation logic:
 
 ## Error Handling
 
-- `uvx` not found → silent exit (hook is a no-op, user can install later)
 - `go.mod` not found → silent exit (not a Go project)
 - `.serena/project.yml` already exists → silent exit (idempotent)
 - Write failure → logged to `/tmp/serena-auto-init.log`, does not surface to Claude
