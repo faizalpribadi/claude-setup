@@ -1,6 +1,6 @@
 {
   "env": {
-    "ENABLE_TOOL_SEARCH": "auto:5",
+"ENABLE_TOOL_SEARCH": "auto:5",
     "DISABLE_NON_ESSENTIAL_MODEL_CALLS": "1",
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "40",
     "MAX_THINKING_TOKENS": "8000"
@@ -12,7 +12,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/rtk-rewrite.sh"
+            "command": "/Users/faizalpribadi/.claude/hooks/ctx-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/faizalpribadi/.claude/hooks/rtk-rewrite.sh"
           }
         ]
       },
@@ -21,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/read-once/hook.sh"
+            "command": "~/.claude/read-once/hook.sh"
           }
         ]
       }
@@ -32,7 +36,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/filter-test-output.sh"
+            "command": "/Users/faizalpribadi/.claude/hooks/filter-test-output.sh"
+          },
+          {
+            "type": "command",
+            "command": "/Users/faizalpribadi/.claude/hooks/codegraph-sync.sh"
           }
         ]
       }
@@ -42,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/session-context.sh"
+            "command": "/Users/faizalpribadi/.claude/hooks/session-context.sh"
           }
         ]
       }
@@ -52,7 +60,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/pre-compact.sh"
+            "command": "/Users/faizalpribadi/.claude/hooks/pre-compact.sh"
           }
         ]
       }
@@ -60,18 +68,18 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "$HOME/.claude/hooks/statusline.sh",
+    "command": "/Users/faizalpribadi/.claude/hooks/statusline.sh",
     "padding": 0
   },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true,
-    "mgrep@Mixedbread-Grep": true,
-    "context-mode@context-mode": true,
     "claude-mem@thedotmack": true,
     "plannotator@plannotator": true,
     "ast-grep@ast-grep-marketplace": true,
-    "cartographer@cartographer-marketplace": true
+    "cartographer@cartographer-marketplace": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "mgrep@Mixedbread-Grep": true,
+    "context-mode@context-mode": true
   },
   "extraKnownMarketplaces": {
     "superpowers-marketplace": {
@@ -84,18 +92,6 @@
       "source": {
         "source": "github",
         "repo": "affaan-m/everything-claude-code"
-      }
-    },
-    "Mixedbread-Grep": {
-      "source": {
-        "source": "github",
-        "repo": "mixedbread-ai/mgrep"
-      }
-    },
-    "context-mode": {
-      "source": {
-        "source": "github",
-        "repo": "mksglu/context-mode"
       }
     },
     "thedotmack": {
@@ -126,6 +122,18 @@
       "source": {
         "source": "github",
         "repo": "anthropics/healthcare"
+      }
+    },
+    "Mixedbread-Grep": {
+      "source": {
+        "source": "github",
+        "repo": "mixedbread-ai/mgrep"
+      }
+    },
+    "context-mode": {
+      "source": {
+        "source": "github",
+        "repo": "mksglu/context-mode"
       }
     }
   }

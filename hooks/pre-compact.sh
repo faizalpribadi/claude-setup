@@ -40,16 +40,29 @@ This file saves context before compaction for continuity in next session.
 HEADER
 fi
 
-# Get recent file changes from git
-cd "$PROJECT_DIR" && RECENT_CHANGES=$(git status --short 2>/dev/null | head -20)
+# Get git context
+cd "$PROJECT_DIR" 2>/dev/null || true
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+RECENT_CHANGES=$(git status --short 2>/dev/null | head -20)
+RECENT_COMMITS=$(git log --oneline -10 2>/dev/null || echo "no commits")
+MODIFIED_FILES=$(git diff --name-only HEAD~5 2>/dev/null | head -20 || echo "")
 
 # Append to handoff file
 cat >> "$HANDOFF_FILE" << EOF
 
 ## Session: $TIMESTAMP
 
-### Files Changed
+### Branch
+$BRANCH
+
+### Recent Commits (last 10)
+$RECENT_COMMITS
+
+### Working Tree Changes
 $RECENT_CHANGES
+
+### Recently Modified Files (HEAD~5)
+$MODIFIED_FILES
 
 ### Context Summary
 Auto-saved before compaction
