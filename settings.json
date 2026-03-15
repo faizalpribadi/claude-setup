@@ -70,7 +70,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/Users/faizalpribadi/.claude/hooks/statusline.sh",
+    "command": "/Users/faizalpribadi/.claude/hooks/context-bar.sh",
     "padding": 0
   },
   "enabledPlugins": {
