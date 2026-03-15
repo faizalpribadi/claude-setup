@@ -201,7 +201,7 @@ Expected: serena listed as active MCP server
 
 - [ ] **Step 4: Test serena in a Go project**
 
-Navigate to `~/bukumed/users/` and ask Claude:
+Navigate to your Go project directory and ask Claude:
 ```
 find the NewUserRepository constructor
 ```

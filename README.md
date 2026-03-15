@@ -147,7 +147,7 @@ initial_prompt: |
 On every prompt, this hook injects project context and appends task-specific hints with zero model calls:
 
 ```
-[Session] project=bukumed cwd=/Users/.../bukumed branch=main go_module=bukumed
+[Session] project=my-service cwd=/Users/.../my-service branch=main go_module=my-service
   | [Hint] Go task: tool priority = serena → gopls-lsp → codegraph → mgrep
   | [Hint] Debug task: invoke systematic-debugging skill before proposing fixes
 ```
