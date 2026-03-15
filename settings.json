@@ -65,6 +65,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/codegraph-sync.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/serena-auto-init.sh"
           }
         ]
       }
